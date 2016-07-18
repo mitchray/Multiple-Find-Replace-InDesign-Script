@@ -2,7 +2,7 @@
 
 @title Multiple Find/Replace
 @author Mitchell Ray
-@version 1.0.0
+@version 1.0.1
 
 Based on the GREP Query Runner script by Peter Kahrel
 http://www.kahrel.plus.com/indesign/grep_query_runner.html
@@ -19,7 +19,7 @@ var scopeSelection;
 scopeGroup.add("radiobutton", undefined, "Selected Objects");
 scopeGroup.add("radiobutton", undefined, "Document");
 
-scopeGroup.children[1].value = true; // Default to 'Document'
+scopeGroup.children[0].value = true; // Default to 'Selected Objects'
 
 var typesPanel = w.add("tabbedpanel");
 typesPanel.alignChildren = ["fill", "fill"];
@@ -127,13 +127,13 @@ function findQueries(queryType) {
 
     var queryFolder = app.scriptPreferences.scriptsFolder.parent.parent + "/Find-Change Queries/" + searchTypeResults[queryType].folder + "/";
     var appFolder = indesignFolder() + '/Presets/Find-Change Queries/' + searchTypeResults[queryType].folder + '/' + $.locale;
-    
+
     // Create dummy separator file
     var dummy = File(queryFolder + "----------.xml");
     dummy.open('w');
     dummy.write('');
     dummy.close();
-    
+
     var list = findQueriesSub(appFolder);
     list = list.concat(findQueriesSub(queryFolder));
     for (var i = list.length - 1; i >= 0; i--) {
@@ -208,9 +208,9 @@ function warnDocumentScope() {
 
 function warnSelectedObjects(d) {
     var s = d.selection;
-        
-    //alert(app.selection[0].getElements()[0].constructor.name);        
-        
+
+    //alert(app.selection[0].getElements()[0].constructor.name);
+
     if (s.length < 1) {
         var myDialog = new Window("dialog", "Warning");
         myDialog.add("statictext", undefined, "No objects were selected");
@@ -244,8 +244,8 @@ function runTextQueries() {
     var newSelections;
 
     if (scope == "Selected Objects") {
-        warnSelectedObjects(thisDocument);        
-        
+        warnSelectedObjects(thisDocument);
+
         // Loop through each selected object
         for (n = 0; n < selections.length; n++) {
             app.select(selections[n].allPageItems, SelectionOptions.ADD_TO);
@@ -270,14 +270,12 @@ function runTextQueries() {
      */
     function subTextQueries(q, s) {
         if (typeof q.textMode !== "undefined" && q.textMode.length > 0) {
-            var textProgress = new Window('palette', "Running " + q.textMode.length + " Text Queries", undefined, {closeButton:false});
-            textProgress.progressbar = textProgress.add('progressbar', undefined, 0, q.textMode.length);
-            textProgress.progressbar.preferredSize.width = 300;
-            textProgress.show();
+            createLocalProgressBar("Running " + q.textMode.length + " Object Queries", q.textMode.length);
 
             // Loop through each selected query
             for (var i = 0; i < q.textMode.length; i++) {
-                textProgress.progressbar.value = i+1;
+                updateLocalProgressBar();
+
                 app.loadFindChangeQuery(q.textMode[i], SearchModes.textSearch);
                 app.findChangeTextOptions.includeMasterPages = true;
 
@@ -295,6 +293,8 @@ function runTextQueries() {
                     thisDocument.changeText();
                 }
             }
+
+            destroyLocalProgressBar();
         }
     }
 }
@@ -307,8 +307,8 @@ function runGrepQueries() {
     var newSelections;
 
     if (scope == "Selected Objects") {
-        warnSelectedObjects(thisDocument);        
-        
+        warnSelectedObjects(thisDocument);
+
         // Loop through each selected object
         for (n = 0; n < selections.length; n++) {
             app.select(selections[n].allPageItems, SelectionOptions.ADD_TO);
@@ -333,14 +333,12 @@ function runGrepQueries() {
      */
     function subGrepQueries(q, s) {
         if (typeof q.grepMode !== "undefined" && q.grepMode.length > 0) {
-            var grepProgress = new Window('palette', "Running " + q.grepMode.length + " GREP Queries", undefined, {closeButton:false});
-            grepProgress.progressbar = grepProgress.add('progressbar', undefined, 0, q.grepMode.length);
-            grepProgress.progressbar.preferredSize.width = 300;
-            grepProgress.show();
+            createLocalProgressBar("Running " + q.grepMode.length + " Object Queries", q.grepMode.length);
 
             // Loop through each selected query
             for (var i = 0; i < q.grepMode.length; i++) {
-                grepProgress.progressbar.value = i+1;
+                updateLocalProgressBar();
+
                 app.loadFindChangeQuery(q.grepMode[i], SearchModes.grepSearch);
                 app.findChangeGrepOptions.includeMasterPages = true;
 
@@ -358,6 +356,8 @@ function runGrepQueries() {
                     thisDocument.changeGrep();
                 }
             }
+
+            destroyLocalProgressBar();
         }
     }
 }
@@ -371,7 +371,7 @@ function runGlyphQueries() {
 
     if (scope == "Selected Objects") {
         warnSelectedObjects(thisDocument);
-        
+
         // Loop through each selected object
         for (n = 0; n < selections.length; n++) {
             app.select(selections[n].allPageItems, SelectionOptions.ADD_TO);
@@ -396,14 +396,12 @@ function runGlyphQueries() {
      */
     function subGlyphQueries(q, s) {
         if (typeof q.glyphMode !== "undefined" && q.glyphMode.length > 0) {
-            var glyphProgress = new Window('palette', "Running " + q.glyphMode.length + " Glyph Queries", undefined, {closeButton:false});
-            glyphProgress.progressbar = glyphProgress.add('progressbar', undefined, 0, q.glyphMode.length);
-            glyphProgress.progressbar.preferredSize.width = 300;
-            glyphProgress.show();
+            createLocalProgressBar("Running " + q.glyphMode.length + " Object Queries", q.glyphMode.length);
 
             // Loop through each selected query
             for (var i = 0; i < q.glyphMode.length; i++) {
-                glyphProgress.progressbar.value = i+1;
+                updateLocalProgressBar();
+
                 app.loadFindChangeQuery(q.glyphMode[i], SearchModes.glyphSearch);
                 app.findChangeGlyphOptions.includeMasterPages = true;
 
@@ -421,6 +419,8 @@ function runGlyphQueries() {
                     thisDocument.changeGlyph();
                 }
             }
+
+            destroyLocalProgressBar();
         }
     }
 }
@@ -434,7 +434,7 @@ function runObjectQueries() {
 
     if (scope == "Selected Objects") {
         warnSelectedObjects(thisDocument);
-        
+
         // Loop through each selected object
         for (n = 0; n < selections.length; n++) {
             app.select(selections[n].allPageItems, SelectionOptions.ADD_TO);
@@ -459,14 +459,12 @@ function runObjectQueries() {
      */
     function subObjectQueries(q, s) {
         if (typeof q.objectMode !== "undefined" && q.objectMode.length > 0) {
-            var objectProgress = new Window('palette', "Running " + q.objectMode.length + " Object Queries", undefined, {closeButton:false});
-            objectProgress.progressbar = objectProgress.add('progressbar', undefined, 0, q.objectMode.length);
-            objectProgress.progressbar.preferredSize.width = 300;
-            objectProgress.show();
+            createLocalProgressBar("Running " + q.objectMode.length + " Object Queries", q.objectMode.length);
 
             // Loop through each selected query
             for (var i = 0; i < q.objectMode.length; i++) {
-                objectProgress.progressbar.value = i+1;
+                updateLocalProgressBar();
+
                 app.loadFindChangeQuery(q.objectMode[i], SearchModes.objectSearch);
                 app.findChangeObjectOptions.includeMasterPages = true;
 
@@ -478,8 +476,31 @@ function runObjectQueries() {
                     thisDocument.changeObject();
                 }
             }
+
+            destroyLocalProgressBar();
         }
     }
+}
+
+/**
+ *  Local task progress bar
+ */
+function createLocalProgressBar(message, total) {
+    localProgressBar = new Window('palette', message, undefined, {closeButton:false});
+    localProgressBar.progressbar = localProgressBar.add('progressbar', undefined, 0, total);
+    localProgressBar.progressbar.preferredSize.width = 300;
+    localProgressBar.show();
+}
+
+function updateLocalProgressBar() {
+    localProgressBar.progressbar.value++;
+    localProgressBar.update();
+};
+
+function destroyLocalProgressBar() {
+    localProgressBar.close();
+    // Prevents InDesign from losing focus
+    indesign.active = true;
 }
 
 //
