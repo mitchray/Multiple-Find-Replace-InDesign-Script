@@ -1,8 +1,8 @@
-﻿/**
+/**
 
 @title Multiple Find/Replace
 @author Mitchell Ray
-@version 1.0.1
+@version 1.0.3
 
 Based on the GREP Query Runner script by Peter Kahrel
 http://www.kahrel.plus.com/indesign/grep_query_runner.html
@@ -11,7 +11,7 @@ http://www.kahrel.plus.com/indesign/grep_query_runner.html
 #targetengine "session";
 
 // Setup
-var w = new Window("palette", "Multiple Find/Replace");
+var w = new Window("palette", "Multiple Find/Replace 1.0.3");
 var scopePanel = w.add("panel", undefined, "Run queries on");
 var scopeGroup = scopePanel.add("group");
 var scopeSelection;
@@ -128,17 +128,17 @@ function findQueries(queryType) {
     var queryFolder = app.scriptPreferences.scriptsFolder.parent.parent + "/Find-Change Queries/" + searchTypeResults[queryType].folder + "/";
     var appFolder = indesignFolder() + '/Presets/Find-Change Queries/' + searchTypeResults[queryType].folder + '/' + $.locale;
 
-    // Create dummy separator file
+    // Remove dummy separator file from old version
     var dummy = File(queryFolder + "----------.xml");
-    dummy.open('w');
-    dummy.write('');
-    dummy.close();
+    dummy.remove('w');
 
     var list = findQueriesSub(appFolder);
     list = list.concat(findQueriesSub(queryFolder));
     for (var i = list.length - 1; i >= 0; i--) {
         list[i] = decodeURI(list[i].name.replace('.xml', ''));
     }
+
+    list.sort();
 
     searchTypeResults[queryType].results = list;
 }
@@ -241,23 +241,13 @@ function runTextQueries() {
     var scope = getScope();
     var thisDocument = app.activeDocument;
     var selections = thisDocument.selection;
-    var newSelections;
+    var newSelections = [];
 
     if (scope == "Selected Objects") {
         warnSelectedObjects(thisDocument);
 
-        // Loop through each selected object
-        for (n = 0; n < selections.length; n++) {
-            app.select(selections[n].allPageItems, SelectionOptions.ADD_TO);
-        }
-
-        // Load our new selection
-        newSelections = thisDocument.selection;
-
+        newSelections = getAllObjectsInSelection(selections);
         subTextQueries(queries, newSelections);
-
-        //Restore previous selection
-        thisDocument.select(selections);
     } else {
         warnDocumentScope();
         subTextQueries(queries);
@@ -270,7 +260,7 @@ function runTextQueries() {
      */
     function subTextQueries(q, s) {
         if (typeof q.textMode !== "undefined" && q.textMode.length > 0) {
-            createLocalProgressBar("Running " + q.textMode.length + " Object Queries", q.textMode.length);
+            createLocalProgressBar("Running " + q.textMode.length + " Text Queries", q.textMode.length);
 
             // Loop through each selected query
             for (var i = 0; i < q.textMode.length; i++) {
@@ -304,23 +294,13 @@ function runGrepQueries() {
     var scope = getScope();
     var thisDocument = app.activeDocument;
     var selections = thisDocument.selection;
-    var newSelections;
+    var newSelections = [];
 
     if (scope == "Selected Objects") {
         warnSelectedObjects(thisDocument);
 
-        // Loop through each selected object
-        for (n = 0; n < selections.length; n++) {
-            app.select(selections[n].allPageItems, SelectionOptions.ADD_TO);
-        }
-
-        // Load our new selection
-        newSelections = thisDocument.selection;
-
+        newSelections = getAllObjectsInSelection(selections);
         subGrepQueries(queries, newSelections);
-
-        //Restore previous selection
-        thisDocument.select(selections);
     } else {
         warnDocumentScope();
         subGrepQueries(queries);
@@ -333,7 +313,7 @@ function runGrepQueries() {
      */
     function subGrepQueries(q, s) {
         if (typeof q.grepMode !== "undefined" && q.grepMode.length > 0) {
-            createLocalProgressBar("Running " + q.grepMode.length + " Object Queries", q.grepMode.length);
+            createLocalProgressBar("Running " + q.grepMode.length + " GREP Queries", q.grepMode.length);
 
             // Loop through each selected query
             for (var i = 0; i < q.grepMode.length; i++) {
@@ -344,12 +324,8 @@ function runGrepQueries() {
 
                 if (typeof s !== "undefined" && s.length > 0) {
                     for (x = 0; x < s.length; x++) {
-                        try {
-                            if (s[x] instanceof TextFrame) {
-                                s[x].changeGrep();
-                            }
-                        } catch(e) {
-                            // object was not a textframe and threw an exception
+                        if (s[x] instanceof TextFrame) {
+                            s[x].changeGrep();
                         }
                     }
                 } else if (scope == "Document") {
@@ -367,23 +343,13 @@ function runGlyphQueries() {
     var scope = getScope();
     var thisDocument = app.activeDocument;
     var selections = thisDocument.selection;
-    var newSelections;
+    var newSelections = [];
 
     if (scope == "Selected Objects") {
         warnSelectedObjects(thisDocument);
 
-        // Loop through each selected object
-        for (n = 0; n < selections.length; n++) {
-            app.select(selections[n].allPageItems, SelectionOptions.ADD_TO);
-        }
-
-        // Load our new selection
-        newSelections = thisDocument.selection;
-
+        newSelections = getAllObjectsInSelection(selections);
         subGlyphQueries(queries, newSelections);
-
-        //Restore previous selection
-        thisDocument.select(selections);
     } else {
         warnDocumentScope();
         subGlyphQueries(queries);
@@ -396,7 +362,7 @@ function runGlyphQueries() {
      */
     function subGlyphQueries(q, s) {
         if (typeof q.glyphMode !== "undefined" && q.glyphMode.length > 0) {
-            createLocalProgressBar("Running " + q.glyphMode.length + " Object Queries", q.glyphMode.length);
+            createLocalProgressBar("Running " + q.glyphMode.length + " Glyph Queries", q.glyphMode.length);
 
             // Loop through each selected query
             for (var i = 0; i < q.glyphMode.length; i++) {
@@ -501,6 +467,33 @@ function destroyLocalProgressBar() {
     localProgressBar.close();
     // Prevents InDesign from losing focus
     indesign.active = true;
+}
+
+/**
+ *  Function to recursively gather all pageItems, including nested (anchored) objects
+ */
+function getAllObjectsInSelection(selection) {
+    var allPageItems = [];
+
+    // Helper function to recursively explore pageItems and nested items
+    function recurseItems(items) {
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+
+            // Add the item itself to the collection if it's not already added
+            allPageItems.push(item);
+
+            // Check if the item is a group, which might contain other pageItems
+            if (item.hasOwnProperty("allPageItems")) {
+                recurseItems(item.allPageItems); // Recurse into the group's pageItems
+            }
+        }
+    }
+
+    // Start the recursion on the selected items
+    recurseItems(selection);
+
+    return allPageItems;
 }
 
 //
